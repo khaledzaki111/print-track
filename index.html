@@ -326,6 +326,10 @@ let state = {
   editQtyPartId: null,
   confirmDeletePart: null,
   confirmDeleteVisit: null,
+  partSearch: '',
+  visitsWorkshop: null,
+  machinePickerSearch: '',
+  selectedVisitMachineId: null,
 };
 
 function esc(str){
@@ -1016,25 +1020,69 @@ function renderVisitsPage(isAdmin){
       <div class="visit-report">${esc(v.report)}</div>
     </div>`;
 
+  // ===== عرض القائمة =====
   let listHtml;
   if (isAdmin){
-    // الأدمن: مقسمة حسب الورش
-    const groups = myWorkshops.map(w => {
-      const items = state.visits.filter(v => v.workshop === w);
-      return `
-        <div class="workshop-group-title">${esc(w)} <span style="opacity:.5; font-weight:400;">(${items.length})</span></div>
+    if (!state.visitsWorkshop){
+      // شاشة اختيار الورشة
+      listHtml = `
+        <p style="font-size:13px; opacity:.7; margin-bottom:14px;">اختر الورشة لعرض زياراتها</p>
+        <div class="grid">
+          ${myWorkshops.map(w => {
+            const count = state.visits.filter(v => v.workshop === w).length;
+            return `
+            <div class="machine-card card fade-up" data-visits-workshop="${esc(w)}">
+              <div class="card-top">
+                <span class="status-badge good">${ic('clipboard')} ${count} زيارة</span>
+              </div>
+              <div class="machine-name">${esc(w)}</div>
+            </div>`;
+          }).join('')}
+        </div>`;
+    } else {
+      const items = state.visits.filter(v => v.workshop === state.visitsWorkshop);
+      listHtml = `
+        <div class="row-between">
+          <button class="back-link" id="backToWorkshopList">← رجوع لقائمة الورش</button>
+          <button class="btn-outline btn-shine" id="printVisitsBtn">${ic('download')} طباعة تقارير ${esc(state.visitsWorkshop)}</button>
+        </div>
+        <div class="workshop-group-title">${esc(state.visitsWorkshop)} <span style="opacity:.5; font-weight:400;">(${items.length})</span></div>
         ${items.length ? items.map(v => visitCard(v, false)).join('') : `<p style="font-size:13px; opacity:.45; padding:6px 0 12px;">لا توجد زيارات مسجلة لهذه الورشة</p>`}`;
-    }).join('');
-    listHtml = groups;
+    }
   } else {
     const items = state.visits;
     listHtml = items.length ? items.map(v => visitCard(v, false)).join('') : `<div class="empty-state fade-in">${ic('clipboard','width:32px;height:32px;opacity:.4;')}<br/>لا توجد زيارات مسجلة حتى الآن</div>`;
   }
 
-  const machineOptions = state.machines
+  // ===== اختيار الماكينة: بحث + كروت بدل قائمة طويلة =====
+  const mq = state.machinePickerSearch.trim().toLowerCase();
+  const pickerMachines = state.machines
     .filter(m => myWorkshops.includes(m.workshop))
-    .map(m => `<option value="${esc(m.id)}">${esc(m.name)}${m.serial_number ? ' — ' + esc(m.serial_number) : ''}</option>`)
-    .join('');
+    .filter(m => !mq || (m.name||'').toLowerCase().includes(mq) || (m.serial_number||'').toLowerCase().includes(mq));
+
+  const machinePickerHtml = `
+    <p class="panel-label">الماكينة</p>
+    <input type="hidden" id="visitMachine" value="${esc(state.selectedVisitMachineId || '')}" />
+    <div style="position:relative; margin-bottom:10px;">
+      <input id="machinePickerSearch" value="${esc(state.machinePickerSearch)}" placeholder="ابحث بالاسم أو الرقم التسلسلي..." style="width:100%; padding:9px 12px; font-size:13px;" />
+    </div>
+    <div style="max-height:190px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:6px; background:var(--panel-2);">
+      ${pickerMachines.length === 0
+        ? `<p style="font-size:12px; opacity:.5; text-align:center; padding:14px 0;">لا توجد نتائج</p>`
+        : pickerMachines.map(m => {
+            const sel = state.selectedVisitMachineId === m.id;
+            return `
+            <button type="button" data-pick-machine="${m.id}" style="
+              width:100%; text-align:start; padding:8px 10px; margin-bottom:4px; cursor:pointer;
+              background:${sel ? 'rgba(212,175,55,.16)' : 'transparent'};
+              border:1px solid ${sel ? 'var(--gold)' : 'transparent'};
+              border-radius:6px; color:#fff; font-family:inherit; font-size:13px;">
+              <span style="color:${sel ? 'var(--gold-bright)' : '#fff'}; font-weight:${sel?'700':'500'};">${esc(m.name)}</span>
+              ${m.serial_number ? `<span style="opacity:.55; font-size:11px;"> — ${esc(m.serial_number)}</span>` : ''}
+              ${isAdmin ? `<span style="opacity:.4; font-size:10px; display:block;">${esc(m.workshop)}</span>` : ''}
+            </button>`;
+          }).join('')}
+    </div>`;
 
   return `
   <div class="fade-up">
@@ -1045,19 +1093,9 @@ function renderVisitsPage(isAdmin){
     ${state.addVisitOpen ? `
       <form id="addVisitForm" class="panel glass fade-in" style="margin-bottom:20px;">
         <p class="section-title">تسجيل زيارة مهندس جديدة</p>
-        <div class="info-grid" style="margin-top:0; padding-top:0; border:none;">
-          <div>
-            <p class="panel-label">الماكينة</p>
-            <select id="visitMachine" style="width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:#fff; font-size:14px;">
-              <option value="">— اختر الماكينة —</option>
-              ${machineOptions}
-            </select>
-          </div>
-          <div>
-            <p class="panel-label">اسم المهندس</p>
-            <input id="visitEngineer" placeholder="اسم مهندس شركة التوكيل" />
-          </div>
-        </div>
+        ${machinePickerHtml}
+        <p class="panel-label" style="margin-top:14px;">اسم المهندس</p>
+        <input id="visitEngineer" placeholder="اسم مهندس شركة التوكيل" />
         <p class="panel-label" style="margin-top:14px;">تقرير الزيارة</p>
         <textarea id="visitReport" rows="4" placeholder="اكتب تفاصيل الزيارة والإجراءات التي تمت..."></textarea>
         ${state.visitError ? `<p class="error-text fade-in" style="margin-top:10px;">${ic('alert')} ${esc(state.visitError)}</p>` : ""}
@@ -1070,12 +1108,133 @@ function renderVisitsPage(isAdmin){
   </div>`;
 }
 
-function renderInventoryPage(){
+/* ============ طباعة تقارير الزيارات ============ */
+async function printVisits(workshop){
+  const btn = document.getElementById('printVisitsBtn');
+  const original = btn ? btn.innerHTML : '';
+  if (btn){ btn.disabled = true; btn.textContent = 'جاري التجهيز...'; }
+
+  const items = state.visits.filter(v => v.workshop === workshop);
+  const cellStyle = 'border:1px solid #333; padding:8px 10px; font-size:12px; vertical-align:top;';
+  const rows = items.map((v,i) => `
+    <tr>
+      <td style="${cellStyle} text-align:center;">${i+1}</td>
+      <td style="${cellStyle}">${fmtDateTime(v.visited_at)}</td>
+      <td style="${cellStyle}">${esc(v.machine_name || '—')}</td>
+      <td style="${cellStyle}">${esc(v.engineer_name)}</td>
+      <td style="${cellStyle}">${esc(v.report)}</td>
+      <td style="${cellStyle}">${esc(v.created_by_name || '—')}</td>
+    </tr>`).join('');
+
+  const area = document.getElementById('printArea');
+  area.innerHTML = `
+    <div id="pdfContent" style="width:1000px; padding:24px; background:#fff; color:#000; direction:rtl; font-family:'Tajawal','Segoe UI',sans-serif;">
+      <div style="text-align:right; font-weight:bold; font-size:14px; line-height:1.9; margin-bottom:10px;">
+        <div>إدارة المطبوعات والنشر ق م</div>
+        <div>قيادة المطابع الرئيسية ق م</div>
+        <div>${esc(workshopReportLabel(workshop))}</div>
+      </div>
+      <h2 style="text-align:center; text-decoration:underline; font-size:19px; margin:14px 0 6px;">تقارير زيارات المهندسين — ${esc(workshop)}</h2>
+      <p style="text-align:center; font-size:13px; margin:0 0 18px;">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+      <table style="width:100%; border-collapse:collapse;">
+        <thead><tr>
+          <th style="${cellStyle} background:#eee;">م</th>
+          <th style="${cellStyle} background:#eee;">تاريخ الزيارة</th>
+          <th style="${cellStyle} background:#eee;">الماكينة</th>
+          <th style="${cellStyle} background:#eee;">المهندس</th>
+          <th style="${cellStyle} background:#eee;">تقرير الزيارة</th>
+          <th style="${cellStyle} background:#eee;">سجّلها</th>
+        </tr></thead>
+        <tbody>${rows || `<tr><td colspan="6" style="${cellStyle} text-align:center;">لا توجد زيارات مسجلة</td></tr>`}</tbody>
+      </table>
+    </div>`;
+
+  try{
+    await generatePagedPdf(document.getElementById('pdfContent'), `تقارير-زيارات-${workshop}.pdf`);
+  } catch(e){
+    console.error(e);
+    alert('حدثت مشكلة أثناء توليد ملف الـ PDF، يرجى المحاولة مرة أخرى.');
+  } finally {
+    area.innerHTML = '';
+    if (btn){ btn.disabled = false; btn.innerHTML = original; }
+  }
+}
+
+/* ============ طباعة موجودات المخزن ============ */
+async function printInventory(){
+  const btn = document.getElementById('printInventoryBtn');
+  const original = btn ? btn.innerHTML : '';
+  if (btn){ btn.disabled = true; btn.textContent = 'جاري التجهيز...'; }
+
   const parts = state.spareParts;
-  const totalParts = parts.length;
+  const cellStyle = 'border:1px solid #333; padding:7px 9px; font-size:12px;';
+  const rows = parts.map((p,i) => {
+    const low = (p.quantity||0) <= (p.min_quantity||0);
+    return `
+    <tr>
+      <td style="${cellStyle} text-align:center;">${i+1}</td>
+      <td style="${cellStyle}">${esc(p.name)}</td>
+      <td style="${cellStyle}">${esc(p.part_number || '')}</td>
+      <td style="${cellStyle} text-align:center; ${low ? 'font-weight:bold; color:#c0392b;' : ''}">${p.quantity}</td>
+      <td style="${cellStyle} text-align:center;">${p.min_quantity}</td>
+      <td style="${cellStyle}">${esc(p.machine_name || '')}</td>
+      <td style="${cellStyle}">${esc(p.location || '')}</td>
+      <td style="${cellStyle}">${esc(p.supplier || '')}</td>
+    </tr>`;
+  }).join('');
+
   const totalUnits = parts.reduce((s,p) => s + (p.quantity||0), 0);
-  const lowStock = parts.filter(p => (p.quantity||0) <= (p.min_quantity||0));
-  const totalValue = parts.reduce((s,p) => s + (p.quantity||0) * Number(p.unit_price||0), 0);
+  const lowCount = parts.filter(p => (p.quantity||0) <= (p.min_quantity||0)).length;
+
+  const area = document.getElementById('printArea');
+  area.innerHTML = `
+    <div id="pdfContent" style="width:1000px; padding:24px; background:#fff; color:#000; direction:rtl; font-family:'Tajawal','Segoe UI',sans-serif;">
+      <div style="text-align:right; font-weight:bold; font-size:14px; line-height:1.9; margin-bottom:10px;">
+        <div>إدارة المطبوعات والنشر ق م</div>
+        <div>قيادة المطابع الرئيسية ق م</div>
+      </div>
+      <h2 style="text-align:center; text-decoration:underline; font-size:19px; margin:14px 0 6px;">بيان موجودات مخزن قطع الغيار</h2>
+      <p style="text-align:center; font-size:13px; margin:0 0 6px;">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+      <p style="text-align:center; font-size:12px; margin:0 0 18px;">عدد الأصناف: ${parts.length} — إجمالي الكميات: ${totalUnits} — أصناف تحت الحد الأدنى: ${lowCount}</p>
+      <table style="width:100%; border-collapse:collapse;">
+        <thead><tr>
+          <th style="${cellStyle} background:#eee;">م</th>
+          <th style="${cellStyle} background:#eee;">اسم القطعة</th>
+          <th style="${cellStyle} background:#eee;">رقم القطعة</th>
+          <th style="${cellStyle} background:#eee;">الكمية</th>
+          <th style="${cellStyle} background:#eee;">الحد الأدنى</th>
+          <th style="${cellStyle} background:#eee;">اسم الماكينة</th>
+          <th style="${cellStyle} background:#eee;">مكان التخزين</th>
+          <th style="${cellStyle} background:#eee;">المورّد</th>
+        </tr></thead>
+        <tbody>${rows || `<tr><td colspan="8" style="${cellStyle} text-align:center;">المخزن فارغ</td></tr>`}</tbody>
+      </table>
+    </div>`;
+
+  try{
+    await generatePagedPdf(document.getElementById('pdfContent'), `موجودات-المخزن.pdf`);
+  } catch(e){
+    console.error(e);
+    alert('حدثت مشكلة أثناء توليد ملف الـ PDF، يرجى المحاولة مرة أخرى.');
+  } finally {
+    area.innerHTML = '';
+    if (btn){ btn.disabled = false; btn.innerHTML = original; }
+  }
+}
+
+function renderInventoryPage(){
+  const allParts = state.spareParts;
+  const q = state.partSearch.trim().toLowerCase();
+  const parts = q
+    ? allParts.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.machine_name || '').toLowerCase().includes(q) ||
+        (p.part_number || '').toLowerCase().includes(q))
+    : allParts;
+
+  const totalParts = allParts.length;
+  const totalUnits = allParts.reduce((s,p) => s + (p.quantity||0), 0);
+  const lowStock = allParts.filter(p => (p.quantity||0) <= (p.min_quantity||0));
 
   const rows = parts.map(p => {
     const low = (p.quantity||0) <= (p.min_quantity||0);
@@ -1085,7 +1244,7 @@ function renderInventoryPage(){
       <td>${esc(p.part_number || '—')}</td>
       <td><span class="qty-pill ${low?'low':''}">${p.quantity}</span></td>
       <td>${p.min_quantity}</td>
-      <td>${Number(p.unit_price||0).toLocaleString('ar-EG')}</td>
+      <td>${esc(p.machine_name || '—')}</td>
       <td>${esc(p.location || '—')}</td>
       <td>${esc(p.supplier || '—')}</td>
       <td style="white-space:nowrap;">
@@ -1103,14 +1262,16 @@ function renderInventoryPage(){
   <div class="fade-up">
     <div class="row-between">
       <h2 class="h2-gold">${ic('box')} مخزن قطع الغيار</h2>
-      <button class="btn-outline admin-btn btn-shine" id="toggleAddPart">${ic('plus')} إضافة قطعة</button>
+      <div class="icon-btn-group">
+        <button class="btn-outline btn-shine" id="printInventoryBtn">${ic('download')} طباعة الموجودات</button>
+        <button class="btn-outline admin-btn btn-shine" id="toggleAddPart">${ic('plus')} إضافة قطعة</button>
+      </div>
     </div>
 
     <div class="stats-row">
       <div class="stat-card"><div class="stat-value">${totalParts}</div><div class="stat-label">عدد الأصناف</div></div>
       <div class="stat-card"><div class="stat-value">${totalUnits}</div><div class="stat-label">إجمالي الكميات</div></div>
       <div class="stat-card ${lowStock.length ? 'warn':''}"><div class="stat-value">${lowStock.length}</div><div class="stat-label">أصناف تحت الحد الأدنى</div></div>
-      <div class="stat-card"><div class="stat-value">${totalValue.toLocaleString('ar-EG')}</div><div class="stat-label">القيمة التقديرية</div></div>
     </div>
 
     ${lowStock.length ? `
@@ -1127,10 +1288,13 @@ function renderInventoryPage(){
           <div><p class="panel-label">رقم القطعة</p><input id="partNumber" /></div>
           <div><p class="panel-label">الكمية</p><input id="partQty" type="number" value="0" /></div>
           <div><p class="panel-label">الحد الأدنى للتنبيه</p><input id="partMinQty" type="number" value="0" /></div>
-          <div><p class="panel-label">سعر الوحدة</p><input id="partPrice" type="number" step="0.01" value="0" /></div>
+          <div><p class="panel-label">اسم الماكينة</p><input id="partMachine" list="machineNamesList" placeholder="اكتب أو اختر" /></div>
           <div><p class="panel-label">مكان التخزين</p><input id="partLocation" /></div>
           <div><p class="panel-label">المورّد</p><input id="partSupplier" /></div>
         </div>
+        <datalist id="machineNamesList">
+          ${[...new Set(state.machines.map(m => m.name))].map(n => `<option value="${esc(n)}"></option>`).join('')}
+        </datalist>
         ${state.partError ? `<p class="error-text fade-in" style="margin-top:10px;">${ic('alert')} ${esc(state.partError)}</p>` : ""}
         <div style="display:flex; gap:8px; margin-top:14px;">
           <button type="submit" class="btn-gold btn-shine" style="width:auto; padding:10px 20px;">حفظ</button>
@@ -1138,13 +1302,20 @@ function renderInventoryPage(){
         </div>
       </form>` : ""}
 
-    ${parts.length === 0
+    <div style="position:relative; margin-bottom:16px;">
+      <input id="partSearchInput" value="${esc(state.partSearch)}" placeholder="ابحث باسم القطعة أو اسم الماكينة أو رقم القطعة..." style="width:100%; padding:10px 14px; font-size:14px;" />
+      ${state.partSearch ? `<button id="clearPartSearch" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); background:none; border:none; color:#fff; opacity:.6; font-size:16px; cursor:pointer;">${ic('x')}</button>` : ""}
+    </div>
+
+    ${allParts.length === 0
       ? `<div class="empty-state fade-in">${ic('box','width:32px;height:32px;opacity:.4;')}<br/>المخزن فارغ. ابدأ بإضافة قطع الغيار.</div>`
+      : parts.length === 0
+      ? `<div class="empty-state fade-in">${ic('search','width:32px;height:32px;opacity:.4;')}<br/>لا توجد نتائج لـ "${esc(state.partSearch.trim())}"</div>`
       : `<div class="table-wrap">
           <table class="data-table">
             <thead><tr>
               <th>اسم القطعة</th><th>رقم القطعة</th><th>الكمية</th><th>الحد الأدنى</th>
-              <th>سعر الوحدة</th><th>المكان</th><th>المورّد</th><th>إجراءات</th>
+              <th>اسم الماكينة</th><th>المكان</th><th>المورّد</th><th>إجراءات</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
@@ -1586,20 +1757,79 @@ function bindApp(){
   /* ===== تقارير الزيارات ===== */
   const toggleAddVisit = document.getElementById('toggleAddVisit');
   if (toggleAddVisit) toggleAddVisit.addEventListener('click', ()=>{
-    state.addVisitOpen = !state.addVisitOpen; state.visitError=''; render();
+    state.addVisitOpen = !state.addVisitOpen;
+    state.visitError='';
+    state.machinePickerSearch = '';
+    state.selectedVisitMachineId = null;
+    render();
   });
 
   const cancelVisit = document.getElementById('cancelVisit');
-  if (cancelVisit) cancelVisit.addEventListener('click', ()=>{ state.addVisitOpen=false; state.visitError=''; render(); });
+  if (cancelVisit) cancelVisit.addEventListener('click', ()=>{
+    state.addVisitOpen=false; state.visitError='';
+    state.machinePickerSearch=''; state.selectedVisitMachineId=null;
+    render();
+  });
+
+  // اختيار الورشة (للأدمن)
+  document.querySelectorAll('[data-visits-workshop]').forEach(c=>{
+    c.addEventListener('click', ()=>{ state.visitsWorkshop = c.dataset.visitsWorkshop; render(); });
+  });
+  const backToWorkshopList = document.getElementById('backToWorkshopList');
+  if (backToWorkshopList) backToWorkshopList.addEventListener('click', ()=>{ state.visitsWorkshop = null; render(); });
+
+  const printVisitsBtn = document.getElementById('printVisitsBtn');
+  if (printVisitsBtn) printVisitsBtn.addEventListener('click', ()=> printVisits(state.visitsWorkshop));
+
+  // بحث واختيار الماكينة
+  const machinePickerSearch = document.getElementById('machinePickerSearch');
+  if (machinePickerSearch){
+    machinePickerSearch.addEventListener('input', (e)=>{
+      state.machinePickerSearch = e.target.value;
+      const engineer = document.getElementById('visitEngineer');
+      const report = document.getElementById('visitReport');
+      state._draftEngineer = engineer ? engineer.value : '';
+      state._draftReport = report ? report.value : '';
+      render();
+      const el = document.getElementById('machinePickerSearch');
+      if (el){ el.focus(); const v = el.value; el.setSelectionRange(v.length, v.length); }
+      const e2 = document.getElementById('visitEngineer');
+      const r2 = document.getElementById('visitReport');
+      if (e2 && state._draftEngineer) e2.value = state._draftEngineer;
+      if (r2 && state._draftReport) r2.value = state._draftReport;
+    });
+  }
+
+  document.querySelectorAll('[data-pick-machine]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      state.selectedVisitMachineId = b.dataset.pickMachine;
+      const engineer = document.getElementById('visitEngineer');
+      const report = document.getElementById('visitReport');
+      state._draftEngineer = engineer ? engineer.value : '';
+      state._draftReport = report ? report.value : '';
+      render();
+      const e2 = document.getElementById('visitEngineer');
+      const r2 = document.getElementById('visitReport');
+      if (e2 && state._draftEngineer) e2.value = state._draftEngineer;
+      if (r2 && state._draftReport) r2.value = state._draftReport;
+    });
+  });
 
   const addVisitForm = document.getElementById('addVisitForm');
   if (addVisitForm) addVisitForm.addEventListener('submit', async (e)=>{
     e.preventDefault();
-    const machineId = document.getElementById('visitMachine').value;
+    const machineId = state.selectedVisitMachineId;
     const engineer = document.getElementById('visitEngineer').value.trim();
     const report = document.getElementById('visitReport').value.trim();
     if (!machineId || !engineer || !report){
-      state.visitError = 'يرجى اختيار الماكينة وإدخال اسم المهندس وتقرير الزيارة'; render(); return;
+      state.visitError = 'يرجى اختيار الماكينة وإدخال اسم المهندس وتقرير الزيارة';
+      state._draftEngineer = engineer; state._draftReport = report;
+      render();
+      const e2 = document.getElementById('visitEngineer');
+      const r2 = document.getElementById('visitReport');
+      if (e2) e2.value = engineer;
+      if (r2) r2.value = report;
+      return;
     }
     const machine = state.machines.find(m => m.id === machineId);
     const { error } = await sb.from('engineer_visits').insert({
@@ -1613,6 +1843,8 @@ function bindApp(){
     });
     if (error){ state.visitError = error.message; render(); return; }
     state.addVisitOpen = false; state.visitError = '';
+    state.machinePickerSearch = ''; state.selectedVisitMachineId = null;
+    state._draftEngineer = ''; state._draftReport = '';
     await loadVisits();
     render();
   });
@@ -1626,6 +1858,22 @@ function bindApp(){
   });
 
   /* ===== مخزن قطع الغيار ===== */
+  const printInventoryBtn = document.getElementById('printInventoryBtn');
+  if (printInventoryBtn) printInventoryBtn.addEventListener('click', ()=> printInventory());
+
+  const partSearchInput = document.getElementById('partSearchInput');
+  if (partSearchInput){
+    partSearchInput.addEventListener('input', (e)=>{
+      state.partSearch = e.target.value;
+      render();
+      const el = document.getElementById('partSearchInput');
+      if (el){ el.focus(); const v = el.value; el.setSelectionRange(v.length, v.length); }
+    });
+  }
+
+  const clearPartSearch = document.getElementById('clearPartSearch');
+  if (clearPartSearch) clearPartSearch.addEventListener('click', ()=>{ state.partSearch=''; render(); });
+
   const toggleAddPart = document.getElementById('toggleAddPart');
   if (toggleAddPart) toggleAddPart.addEventListener('click', ()=>{
     state.addPartOpen = !state.addPartOpen; state.partError=''; render();
@@ -1644,7 +1892,7 @@ function bindApp(){
       part_number: document.getElementById('partNumber').value.trim(),
       quantity: parseInt(document.getElementById('partQty').value) || 0,
       min_quantity: parseInt(document.getElementById('partMinQty').value) || 0,
-      unit_price: parseFloat(document.getElementById('partPrice').value) || 0,
+      machine_name: document.getElementById('partMachine').value.trim(),
       location: document.getElementById('partLocation').value.trim(),
       supplier: document.getElementById('partSupplier').value.trim(),
     });
