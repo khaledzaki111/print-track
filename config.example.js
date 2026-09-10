@@ -28,7 +28,3 @@ window.APP_CONFIG = {
    المفتاح ده بيتخطى كل سياسات الحماية (RLS)، ومكانه الوحيد
    هو Secrets بتاعة Edge Functions على السيرفر — مش المتصفح.
    ============================================================ */
-   window.APP_CONFIG = {
-      SUPABASE_URL: "https://jzngqtuftspyrylwlyca.supabase.co",
-      SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6bmdxdHVmdHNweXJ5bHdseWNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3OTc1ODUsImV4cCI6MjEwMDM3MzU4NX0.25c5nKF9KiZSbDsG2wEqBGl7IH2dhatMlr-KuNSznAM",
-    };

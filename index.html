@@ -102,18 +102,21 @@
   .btn-outline:hover{ border-color:var(--red-deep); color:var(--red); }
   .btn-outline.admin-btn:hover{ border-color:var(--gold); color:var(--gold-bright); }
   .btn-outline .badge-count{ position:static; margin-right:0; }
-  @media (max-width:640px){
+  @media (max-width:768px){
     .btn-label{ display:none; }
-    .btn-outline{ padding:8px; font-size:15px; }
-    .brand h1{ font-size:13px; max-width:38vw; }
+    .btn-outline{ padding:9px; font-size:16px; }
+    .brand h1{ font-size:13px; max-width:34vw; }
     .brand p{ display:none; }
+    .header-top{ padding:10px 12px; gap:6px; }
+    .brand .logo{ width:32px; height:32px; font-size:14px; }
+    .header-actions{ gap:5px; }
   }
   /* ===== Sidebar Layout ===== */
   .layout{ display:flex; min-height:calc(100vh - 66px); }
   .sidebar{
     width:230px; flex-shrink:0; border-inline-end:1px solid var(--border);
     background:linear-gradient(180deg, rgba(26,22,17,.95), rgba(14,12,9,.95));
-    padding:16px 10px; transition:width .28s cubic-bezier(.16,1,.3,1);
+    padding:16px 10px; transition:width .28s cubic-bezier(.16,1,.3,1), transform .28s cubic-bezier(.16,1,.3,1);
     position:sticky; top:66px; height:calc(100vh - 66px); overflow-y:auto; overflow-x:hidden;
   }
   .sidebar.collapsed{ width:60px; }
@@ -142,15 +145,32 @@
   .sidebar.collapsed .nav-item{ justify-content:center; padding:10px 8px; }
   .sidebar.collapsed .nav-item .badge-count{ position:absolute; top:2px; inset-inline-end:2px; }
   .content-area{ flex:1; min-width:0; padding:24px 20px; }
-  @media (max-width:640px){
-    .sidebar{ width:56px; padding:12px 6px; }
-    .sidebar .nav-text, .sidebar .nav-section-label{ display:none; }
-    .sidebar .nav-item{ justify-content:center; padding:10px 6px; }
-    .sidebar:not(.collapsed){ width:190px; }
-    .sidebar:not(.collapsed) .nav-text, .sidebar:not(.collapsed) .nav-section-label{ display:block; }
-    .sidebar:not(.collapsed) .nav-item{ justify-content:flex-start; padding:10px 12px; }
-    .content-area{ padding:16px 12px; }
+  .sidebar-backdrop{ display:none; }
+  @media (max-width:768px){
+    /* على الموبايل: القائمة بتطلع فوق المحتوى مش جنبه */
+    .layout{ display:block; }
+    .sidebar{
+      position:fixed; top:0; bottom:0; inset-inline-start:0;
+      width:250px; height:100vh; z-index:60; padding:16px 12px;
+      transform:translateX(0); box-shadow:0 0 40px rgba(0,0,0,.7);
+    }
+    html[dir="rtl"] .sidebar{ transform:translateX(0); }
+    .sidebar.collapsed{
+      width:250px;
+      transform:translateX(-110%);
+    }
+    html[dir="rtl"] .sidebar.collapsed{ transform:translateX(110%); }
+    .sidebar .nav-text, .sidebar .nav-section-label{ display:block !important; }
+    .sidebar .nav-item{ justify-content:flex-start !important; padding:12px 14px !important; font-size:15px; }
+    .sidebar .nav-item .badge-count{ position:static !important; }
+    .sidebar-backdrop{
+      display:block; position:fixed; inset:0; background:rgba(0,0,0,.6);
+      z-index:55; backdrop-filter:blur(2px);
+    }
+    .content-area{ padding:16px 14px; width:100%; }
+    .mobile-menu-btn{ display:flex !important; }
   }
+  .mobile-menu-btn{ display:none; }
   .badge-count{ margin-right:6px; display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 4px; border-radius:9999px; background:linear-gradient(135deg,var(--red),var(--red-deep)); color:#fff; font-size:10px; font-weight:700; }
   main{ padding:24px 20px; }
   .row-between{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
@@ -230,7 +250,32 @@
   .visit-report{ font-size:13px; line-height:1.7; opacity:.9; white-space:pre-wrap; }
   .workshop-group-title{ font-size:14px; font-weight:800; color:var(--gold-bright); margin:22px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--border); }
   .icon-btn-group{ display:flex; gap:8px; flex-wrap:wrap; }
-  @media (max-width:640px){ .info-grid{ grid-template-columns:1fr; } }
+  @media (max-width:768px){
+    .info-grid{ grid-template-columns:1fr; }
+    .grid{ grid-template-columns:1fr; gap:12px; }
+    .stats-row{ grid-template-columns:1fr 1fr; gap:10px; }
+    .stat-value{ font-size:20px; }
+    .row-between{ flex-direction:column; align-items:stretch; gap:12px; }
+    .icon-btn-group{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .icon-btn-group .btn-outline{ justify-content:center; font-size:13px; padding:10px 8px; }
+    .icon-btn-group .btn-label{ display:inline; }
+    .h2-gold{ font-size:16px; }
+    .data-table{ font-size:12px; }
+    .data-table th, .data-table td{ padding:8px 9px; }
+    .modal-box{ max-width:100%; padding:18px; max-height:88vh; }
+    .panel{ padding:16px; }
+    .machine-card{ padding:14px; }
+    .visit-head{ flex-direction:column; }
+    .visit-head > div:last-child{ text-align:start !important; }
+    .add-form{ flex-direction:column; }
+    .add-form input, .add-form button{ width:100% !important; }
+    textarea, input, select{ font-size:16px; } /* يمنع تكبير الشاشة تلقائيًا في iOS */
+    .toggle-btn{ font-size:13px; padding:11px 8px; }
+  }
+  @media (max-width:400px){
+    .stats-row{ grid-template-columns:1fr; }
+    .icon-btn-group{ grid-template-columns:1fr; }
+  }
 
   /* منطقة توليد الـ PDF (خارج الشاشة، مش ظاهرة للمستخدم) */
   #printArea{ position:fixed; top:-10000px; left:-10000px; width:1000px; }
@@ -315,7 +360,7 @@ let state = {
   addFormOpen: false,
   confirmDeleteId: null,
   faultLog: { open: false, loading: false, machineId: null, incidents: [] },
-  sidebarCollapsed: false,
+  sidebarCollapsed: window.innerWidth <= 768,
   page: 'workshops',
   visits: [],
   addVisitOpen: false,
@@ -928,6 +973,7 @@ function renderApp(){
     <header class="glass">
       <div class="header-top container">
         <div class="brand fade-up">
+          <button class="btn-outline mobile-menu-btn" id="mobileMenuBtn" title="القائمة">${ic('menu')}</button>
           <div class="logo">${ic('wrench')}</div>
           <div>
             <h1 class="shimmer">متابعة الحالة الفنية للمعدات</h1>
@@ -994,6 +1040,7 @@ function renderApp(){
     ${headerHtml}
     <div class="layout">
       ${sidebarHtml}
+      ${!state.sidebarCollapsed ? `<div class="sidebar-backdrop" id="sidebarBackdrop"></div>` : ""}
       <div class="content-area">${contentHtml}</div>
     </div>
     ${state.showAdmin ? renderAdminModal() : ""}
@@ -1568,6 +1615,23 @@ function bindApp(){
     render();
   });
 
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', ()=>{
+    state.sidebarCollapsed = !state.sidebarCollapsed;
+    render();
+  });
+
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', ()=>{
+    state.sidebarCollapsed = true;
+    render();
+  });
+
+  // على الموبايل: اقفل القائمة تلقائيًا بعد الاختيار
+  const closeSidebarOnMobile = () => {
+    if (window.innerWidth <= 768) state.sidebarCollapsed = true;
+  };
+
   document.querySelectorAll('[data-nav-workshop]').forEach(t=>{
     t.addEventListener('click', ()=>{
       state.page = 'workshops';
@@ -1577,6 +1641,7 @@ function bindApp(){
       state.confirmDeleteId = null;
       state.searchQuery = '';
       state.faultLog = { open:false, loading:false, machineId:null, incidents:[] };
+      closeSidebarOnMobile();
       render();
     });
   });
@@ -1588,6 +1653,8 @@ function bindApp(){
       state.searchQuery = '';
       state.addVisitOpen = false;
       state.addPartOpen = false;
+      state.visitsWorkshop = null;
+      closeSidebarOnMobile();
       render();
       if (state.page === 'visits'){ await loadVisits(); render(); }
       if (state.page === 'inventory'){ await loadSpareParts(); render(); }
